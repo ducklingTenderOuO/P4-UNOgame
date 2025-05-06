@@ -88,15 +88,21 @@ public class TableroUNO {
     }
 
     private void robarCarta(Jugador jugador) {
-        robarCartas(jugador, 1); // Roba 1 carta
-        System.out.println(jugador.getNombre() + " robó 1 carta.");
+        // ju rob hasta que puede ju
+        while (true) {
+            robarCartas(jugador, 1); // Roba 1 carta
+            System.out.println(jugador.getNombre() + " robó una carta.");
 
-        // Verificar si puede jugarla
-        CartaUNO cartaRobada = jugador.getMano().get(jugador.getMano().size() - 1);
-        if (cartaRobada.esJugableSobre(cartasJugadas.getLast())) {
-            System.out.println("¿Quieres jugar esta carta? (s/n)");
-            if (scanner.next().equalsIgnoreCase("s")) {
-                jugarCarta(jugador, cartaRobada);
+            // puede jugarla?
+            CartaUNO cartaRobada = jugador.getMano().get(jugador.getMano().size() - 1);
+            if (cartaRobada.esJugableSobre(cartasJugadas.get(cartasJugadas.size() - 1))) {
+                System.out.println("¿Quieres jugar esta carta? (s/n)");
+                if (scanner.next().equalsIgnoreCase("s")) {
+                    jugarCarta(jugador, cartaRobada);
+                } else {
+                    siguienteTurno();  // Si no la juega, pasa el turno
+                }
+                break;
             }
         }
     }
@@ -121,8 +127,7 @@ public class TableroUNO {
             case 10 -> saltoAdicional = aplicarNegarTurno();
             case 11 -> aplicarCambioSentido();
             case 12 -> saltoAdicional = aplicarMas2();
-            case 13 -> aplicarComodin(carta);
-            case 14 -> saltoAdicional = aplicarComodin(carta);
+            case 13, 14 -> saltoAdicional = aplicarComodin(carta);
         }
 
         if (jugador.getMano().isEmpty()) {
@@ -139,7 +144,7 @@ public class TableroUNO {
     }
 
     private void aplicarCambioSentido() {
-        Collections.reverse(Arrays.asList(jugadores));
+        direccionJuego *= -1;  // Cambia la dirección del turno
         System.out.println("¡El sentido del juego ha cambiado!");
     }
 
@@ -172,17 +177,17 @@ public class TableroUNO {
     }
 
     private Jugador obtenerSiguienteJugador() {
-        int siguiente = (turnoActual + 1) % jugadores.length;
-        return jugadores[siguiente];
+        return jugadores[(turnoActual + direccionJuego) % jugadores.length];
     }
 
     private void siguienteTurno() {
-        turnoActual = (turnoActual + 1) % jugadores.length;
+        turnoActual = (turnoActual + direccionJuego) % jugadores.length;
+        if (turnoActual < 0) turnoActual = jugadores.length - 1;
 
-        int numero = cartasJugadas.getLast().getNumero();
+        int numero = cartasJugadas.get(cartasJugadas.size() - 1).getNumero();
         if (numero == 10 || numero == 12 || numero == 14) {
             // Saltar otro turno
-            turnoActual = (turnoActual + 1) % jugadores.length;
+            turnoActual = (turnoActual + direccionJuego) % jugadores.length;
         }
 
         turno();
