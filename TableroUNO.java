@@ -1,3 +1,11 @@
+/**
+ * Write a description of class TableroUNO here.
+ * Mantiene el flujo del juego
+ * @author (AYJB)
+ * @version (MAY 2025)
+ */
+
+import javax.swing.*;
 import java.util.*;
 
 public class TableroUNO {
@@ -7,8 +15,8 @@ public class TableroUNO {
     private int turnoActual = 0;
     private int direccionJuego = 1; // 1 hor, - ant hor
     private final Scanner scanner = new Scanner(System.in);
-    private final Random random = new Random();
     private final VentanaUNO ventana = new VentanaUNO();
+    private boolean juegoTerminado = false;
 
     public TableroUNO() {
         baraja = new BarajaDeUNO();
@@ -33,7 +41,7 @@ public class TableroUNO {
             String nombre = scanner.next();
             ArrayList<CartaUNO> mano = new ArrayList<>();
             for (int j = 0; j < 7; j++) {
-                mano.add(baraja.getCartas().remove(0));
+                mano.add(baraja.getCartas().removeFirst());
             }
             jugadores[i] = new Jugador(nombre, mano);
         }
@@ -42,7 +50,7 @@ public class TableroUNO {
     private void comenzarJuego() {
         CartaUNO primeraCarta;
         do {
-            primeraCarta = baraja.getCartas().remove(0);
+            primeraCarta = baraja.getCartas().removeFirst();
         } while (primeraCarta.getColor().equals("negro"));
 
         cartasJugadas.add(primeraCarta);
@@ -52,50 +60,62 @@ public class TableroUNO {
     }
 
     private void turno() {
-        while (true) {
+        while (!juegoTerminado) {
             Jugador jugadorActual = jugadores[turnoActual];
-            CartaUNO cartaMesa = cartasJugadas.get(cartasJugadas.size() - 1);
+            CartaUNO cartaMesa = cartasJugadas.getLast();
 
             System.out.println("\n=== TURNO DE " + jugadorActual.getNombre().toUpperCase() + " ===");
             System.out.println("Carta en mesa: " + cartaMesa);
             ventana.mostrarCartaActual(cartaMesa);
 
-            // Ganeeee?
+            // ¿Ganó?
             if (jugadorActual.getMano().isEmpty()) {
                 mostrarFinDelJuego(jugadorActual);
-                break;
+                juegoTerminado = true;
+                return;
             }
 
-            // card rob
             CartaUNO ultimaRobada = jugadorActual.getUltimaRobada();
             if (ultimaRobada != null && ultimaRobada.esJugableSobre(cartaMesa)) {
                 System.out.println("Jugando carta robada: " + ultimaRobada);
                 jugarCarta(jugadorActual, ultimaRobada);
-                continue; // Pasar al siguiente turno
+                continue;
             }
 
-            // card norm
             ventana.actualizarTitulo(jugadorActual.getNombre());
             ventana.mostrarCartas(jugadorActual.getMano());
-            CartaUNO cartaJugada = jugadorActual.seleccionarCarta(scanner, cartaMesa);
 
-            if (cartaJugada == null) {
-                robarCarta(jugadorActual);
+            System.out.println("Haz clic en una carta para jugarla, o robaaaa.");
+
+            while (ventana.getCartaSeleccionada() == null) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            CartaUNO seleccionada = ventana.getCartaSeleccionada();
+            ventana.setCartaSeleccionada(null); // limpiar para el siguiente turno
+
+            if (seleccionada != null && seleccionada.esJugableSobre(cartaMesa)) {
+                jugarCarta(jugadorActual, seleccionada);
             } else {
-                jugarCarta(jugadorActual, cartaJugada);
+                System.out.println("Carta inválida o no seleccionada. Robando una carta...");
+                robarCarta(jugadorActual);
             }
         }
     }
 
     private void robarCarta(Jugador jugador) {
-        // ju rob hasta que puede ju
+        // jugador roba hasta que pueda jugar la carta
         while (true) {
             robarCartas(jugador, 1); // Roba 1 carta
             System.out.println(jugador.getNombre() + " robó una carta.");
 
             // puede jugarla?
-            CartaUNO cartaRobada = jugador.getMano().get(jugador.getMano().size() - 1);
-            if (cartaRobada.esJugableSobre(cartasJugadas.get(cartasJugadas.size() - 1))) {
+            CartaUNO cartaRobada = jugador.getMano().getLast();
+            if (cartaRobada.esJugableSobre(cartasJugadas.getLast())) {
                 System.out.println("¿Quieres jugar esta carta? (s/n)");
                 if (scanner.next().equalsIgnoreCase("s")) {
                     jugarCarta(jugador, cartaRobada);
@@ -109,11 +129,16 @@ public class TableroUNO {
 
     private void robarCartas(Jugador jugador, int cantidad) {
         for (int i = 0; i < cantidad && !baraja.getCartas().isEmpty(); i++) {
-            CartaUNO robada = baraja.getCartas().remove(0);
+            CartaUNO robada = baraja.getCartas().removeFirst();
             jugador.getMano().add(robada);
             System.out.println("Robó: " + robada);
         }
     }
+
+    /**
+     * Añade la carta al montón, la remueve de la mano del jugador, y aplica sus efectos
+     * También verifica si el jugador gano
+     */
 
     private void jugarCarta(Jugador jugador, CartaUNO carta) {
         cartasJugadas.add(carta);
@@ -121,7 +146,7 @@ public class TableroUNO {
         jugador.setUltimaRobada(null);
         System.out.println(jugador.getNombre() + " jugó: " + carta);
 
-        // Aplicar efectos especiales
+        // comodines:D
         boolean saltoAdicional = false;
         switch (carta.getNumero()) {
             case 10 -> saltoAdicional = aplicarNegarTurno();
@@ -137,17 +162,26 @@ public class TableroUNO {
         }
     }
 
+    /**
+     * Aplica el efecto de una carta "Negar Turno", haciendo que el siguiente jugador pierda su turno.
+     */
     private boolean aplicarNegarTurno() {
         System.out.println("¡El siguiente jugador pierde su turno!");
         siguienteTurno();
         return true;
     }
 
+    /**
+     * Cambia la dirección del juego de sentido horario a antihorario o viceversa
+     */
     private void aplicarCambioSentido() {
         direccionJuego *= -1;  // Cambia la dirección del turno
         System.out.println("¡El sentido del juego ha cambiado!");
     }
 
+    /**
+     * El siguiente jugador robe dos cartas y pierda su turno.
+     */
     private boolean aplicarMas2() {
         Jugador siguiente = obtenerSiguienteJugador();
         robarCartas(siguiente, 2);
@@ -156,6 +190,10 @@ public class TableroUNO {
         return true;
     }
 
+    /**
+     * Realiza el cambio de color y si la carta es "+4", el siguiente jugador robe cuatro cartas y
+     * pierde su turno
+     */
     private boolean aplicarComodin(CartaUNO comodin) {
         System.out.println("Elige un color (rojo/amarillo/verde/azul): ");
         String nuevoColor;
@@ -184,7 +222,7 @@ public class TableroUNO {
         turnoActual = (turnoActual + direccionJuego) % jugadores.length;
         if (turnoActual < 0) turnoActual = jugadores.length - 1;
 
-        int numero = cartasJugadas.get(cartasJugadas.size() - 1).getNumero();
+        int numero = cartasJugadas.getLast().getNumero();
         if (numero == 10 || numero == 12 || numero == 14) {
             // Saltar otro turno
             turnoActual = (turnoActual + direccionJuego) % jugadores.length;
@@ -201,6 +239,16 @@ public class TableroUNO {
                 System.out.println(jugador.getNombre() + ": " + jugador.getMano());
             }
         }
+        ventana.actualizarTitulo("Fin del juego");
+        ventana.mostrarCartas(new ArrayList<>());
+        ventana.mostrarCartaActual(null);
+
+        JOptionPane.showMessageDialog(
+                ventana,
+                ganador.getNombre() + " ha ganado el juegoooo 🎉",
+                "¡Juego terminadoooo!",
+                JOptionPane.INFORMATION_MESSAGE
+        );
     }
 
     public static void main(String[] args) {
