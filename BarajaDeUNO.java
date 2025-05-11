@@ -1,3 +1,10 @@
+/**
+ * Write a description of class BarajaDeUNO here.
+ *
+ * @author (AYJB)
+ * @version (MAY 2025)
+ */
+
 import java.util.ArrayList;
 import java.util.Collections;
 
